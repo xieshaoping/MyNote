@@ -1,0 +1,433 @@
+import { PullToRefresh, ListView, Button,Toast,SwipeAction } from 'antd-mobile'
+import router from 'umi/router'
+import LazyLoad from 'react-lazy-load'
+import $ from "jquery"
+import ImageViewer from '../../../components/ImageViewer/index'
+import styles from '../index.less'
+import Header from './Header'
+import SendMsg from '../../../components/SendMsg/index'
+import likeImg from '@images/common/like.png'
+import loveImg from '@images/common/love.png'
+import msgImg from '@images/comment/msg1.png'
+import redPack from '@images/common/redPack_Red32.png'
+import giveImg from '@images/comment/give.png'
+import shareImg from '@images/comment/share.png'
+import {showTime} from '@utils/utils'
+import userImg from '@images/my/user1.png'
+import PtRedPack from '../../../components/PtRedack/PtRedpack'
+let param = {}
+let NUM_ROWS = 10
+let noticeList = []
+
+
+
+function genData () {
+  const dataArr = []
+  let pIndex = param.requestParam.current - 1
+  for (let i = 0; i < NUM_ROWS; i++) {
+    dataArr.push(`row - ${(pIndex * NUM_ROWS) + i}`)
+  }
+  return dataArr
+}
+
+class List extends React.Component {
+  constructor (props) {
+    super(props)
+    const dataSource = new ListView.DataSource({
+      rowHasChanged: (row1, row2) => row1 !== row2,
+    })
+    this.state = {
+      dataSource,
+      refreshing: true,
+      isLoading: true,
+      hasMore: true,
+      listViewKey: Math.random(),
+      userItem:{},
+      placeholder:"",
+      sendMsgKey: Math.random(),
+    }
+  }
+
+
+  getData = (param, type, refKey) => {
+    new Promise((resolve) => {
+      this.props.dispatch({
+        type: 'message/getNotices',
+        payload: { ...param, ...{ resolve: resolve } },
+      })
+    }).then((data) => {
+      if (data.code === 10000) {
+        noticeList = JSON.parse(JSON.stringify(data.result))
+        if (type === 2) {
+          this.rData = [...this.rData, ...genData()]
+          this.setState({
+            dataSource: this.state.dataSource.cloneWithRows(this.rData),
+            isLoading: false,
+            hasMore: noticeList.length === 0 || noticeList.length<param.requestParam.size ? false : true,
+            listViewKey: refKey ? Math.random() : this.state.listViewKey,
+          })
+        } else {
+          this.rData = genData()
+          this.setState({
+            dataSource: this.state.dataSource.cloneWithRows(genData()),
+            refreshing: false,
+            isLoading: false,
+            hasMore: noticeList.length === 0 || noticeList.length<param.requestParam.size ? false : true,
+            listViewKey: refKey ? Math.random() : this.state.listViewKey,
+          })
+        }
+      }
+    })
+  }
+
+  componentDidMount () {
+    param = { requestParam: { current: 1, size: 10, keyword: '' } }
+    this.getData(param, 1)
+  }
+
+
+
+  //下拉加载
+  endReachedHandle = () => {
+    if (!this.state.hasMore) {
+      return false
+    }
+    if (this.state.listLoading) {
+      return false
+    }
+    param.requestParam.current = param.requestParam.current + 1
+    this.getData(param, 2)
+  }
+
+  //下拉刷新列表
+  refreshHandle = () => {
+    param.requestParam.current = 1
+    this.getData(param, 1)
+  }
+
+  //消息类型显示
+  getMsgType = (item) => {
+    let type = null
+    switch (item.type) {
+      case '01':
+        if(item.redpackType=="7"){
+          type = <span><label style={{color:"red",marginRight:10}}>￥{item.redpackAmount.toFixed(2)}</label><img src={redPack}/></span>
+        }else{
+          type = <span><img src={loveImg}/></span>
+        }
+        break
+      case '10':
+        type = <span><img src={likeImg}/></span>
+        break
+      // case '11':
+      //   type = <span>转</span>
+      //   break
+      case '12':
+        type = <span><img src={shareImg}/></span>
+        break
+      case '13':
+        type = <span><img src={msgImg}/></span>
+        break
+      case '14':
+        type = <span><img src={loveImg}/></span>
+        break
+      // case '15':
+      //   type = <span>收</span>
+      //   break
+      case '17':
+        type = <span><img src={giveImg}/></span>
+        break
+      case '20':
+        type = <span><img src={redPack}/></span>
+        break
+    }
+    return type
+  }
+
+  //发短信
+  sendMsgHandle = (item) => {
+    let user=this.state.userItem
+    let imgStr = ''
+    item.imgs.forEach((img, index) => {
+      imgStr = imgStr + img + (index == item.imgs.length - 1 ? '' : ',')
+    })
+
+    let data = {
+      userCode: user.operUserCode,
+      type: '01',
+      content: item.value,
+      imageUrls: imgStr,
+    }
+    if(item.money!=""){
+      data.redpackAmount=item.money
+      data.redpackType="7"
+      data.delFlag="1"
+    }
+
+    new Promise((resolve) => {
+      this.props.dispatch({
+        type: 'message/sendMsg',
+        payload: { formData: data, resolve: resolve },
+      })
+    }).then((data) => {
+      if (data.code === 10000) {
+        this.refs.sendMsg.setState({loading:false})
+        this.setState({ sendMsgKey: Math.random() })
+        if(item.money!=""){
+          router.push({
+            pathname: '/pay',
+            state: {
+              businessCode:data.result,
+              payMoney:item.money,
+              url:'/message',
+            },
+          })
+        }
+      }else{
+        Toast.fail(data.message,1)
+      }
+    })
+  }
+
+
+
+  //关注
+  addFollowHandle = ( item) => {
+    new Promise((resolve) => {
+      const requestParam = { followUserCode: item.operUserCode, resolve: resolve }
+      this.props.dispatch({
+        type: 'message/addFollow',
+        payload: requestParam,
+      })
+    }).then((data) => {
+      if (data.code === 10000) {
+          $("."+item.operUserCode).hide()
+      }else{
+        Toast.fail(data.message, 1)
+      }
+    })
+  }
+  //点击头像进入个人主页
+  headImgHandle = (item) => {
+    router.push({
+      pathname:'lookhim',
+      query:{
+        userCode:item.operUserCode,
+      },
+    })
+  }
+
+  searchMsg = (keyWord) => {
+    param.requestParam.keyword = keyWord
+    param.requestParam.current = 1
+    this.getData(param, 1, true)
+  }
+
+  //阅读消息
+  readMsg = (obj) => {
+    if(obj.readFlag=="0"){
+      new Promise((resolve) => {
+        this.props.dispatch({
+          type: 'message/read',
+          payload: { ids: obj.id, resolve: resolve },
+        })
+      }).then((data) => {
+        if (data.code === 10000) {
+          $("#"+obj.id).hide()
+          obj.readFlag="1"
+        }
+      })
+    }
+
+  }
+  //删除消息
+  delNotice=(obj)=>{
+    new Promise((resolve) => {
+      this.props.dispatch({
+        type: 'message/delNotice',
+        payload: { ids: obj.id, resolve: resolve },
+      })
+    }).then((data) => {
+      if (data.code === 10000) {
+        $("#del"+obj.id).hide()
+      }
+    })
+  }
+  hiddenMsgModal = () => {
+    if(this.refs.sendMsg){
+      this.refs.sendMsg.setState({ msgStatus: true })
+    }
+  }
+
+  replyUserHandle=(obj)=>{
+    if(obj.isSelf){
+      this.setState({userItem:{},placeholder:''})
+    }else{
+      this.setState({userItem:obj,placeholder:"回复 "+obj.operUserName})
+    }
+  }
+  //预览图片
+  imageViewer=(obj,index)=>{
+    this.refs.imageViewer.openImageViewer(index,obj)
+  }
+  articleDetail=(obj)=>{
+    router.push({
+      pathname:'comment',
+      query:{
+        code:obj.refKey,
+        redPackCode:obj.redpackCode,
+      },
+    })
+  }
+
+
+  render () {
+    const { history, cusSerInfo, dispatch } = this.props
+    const { dataSource, refreshing, hasMore,userItem,placeholder,sendMsgKey } = this.state
+
+    let index = 0
+    const row = (rowData, sectionID, rowID) => {
+      let  obj = noticeList[index]
+      index++
+      if (!obj) {
+        return (
+          <div></div>
+        )
+      }
+      return (
+        <SwipeAction
+          style={{ backgroundColor: 'gray' }}
+          autoClose
+          right={[
+            {
+              text: '删除',
+              onPress: () => this.delNotice(obj),
+              style: { backgroundColor: '#F4333C', color: 'white' },
+            },
+          ]}
+        >
+        <div id={"del"+obj.id} key={rowID}>
+          <div onClick={()=>this.replyUserHandle(obj)} className={styles.listItem}>
+            <div  className={styles.left}>
+              {
+                obj.readFlag === '0' ? <div id={obj.id} className={styles.readFlag}></div> : ''
+              }
+              <img onClick={() => this.headImgHandle(obj)} src={obj.operHeadPic?obj.operHeadPic:userImg}/>
+            </div>
+            <div className={styles.right}>
+               <div className={styles.up}>
+                  <div>
+                    <div className={styles.userName}>{obj.operUserName}</div>
+                    <div className={styles.time}>
+                      <span>{showTime(obj.addTime)}</span>
+                      <span style={{marginLeft:10}}>{obj.identityName}</span>
+                    </div>
+                  </div>
+                 <div className={styles.operation}>
+                   {
+                     obj.canFollow == '1' ?<span className={obj.operUserCode}> <Button onClick={() => this.addFollowHandle(obj)}
+                                                          className={styles.followBut}>关注&nbsp;</Button></span> : ''
+                   }
+                   <span className={styles.type}>
+                   {
+                     this.getMsgType(obj)
+                   }
+                   </span>
+                 </div>
+               </div>
+      <span className={styles.rightUp}>
+    <Button className={styles.button}>举报</Button>
+      </span>
+              <div className={styles.down} onClick={() => this.readMsg(obj)}>
+
+                <div className={styles.contentImg}>
+                  {
+                    obj.pics.map((item, index) => {
+
+                      if((index%2)==1){
+                        return ''
+                      }
+                      return (
+                        <LazyLoad once key={item} height={90} style={{width:'50%'}} offsetBottom={10}>
+                          <span>
+                            <img onClick={() => this.imageViewer(obj.pics, index)}  src={obj.pics[index]}/>
+                            {
+                              obj.pics[index+1]? <img onClick={() => this.imageViewer(obj.pics, index+1)}  src={obj.pics[index+1]}/>:''
+                            }
+                          </span>
+                        </LazyLoad>
+
+                      )
+                    })
+                  }
+
+                </div>
+
+                  <div className={styles.content}>
+                    <div className={styles.replyContent}>
+                      {obj.content}
+
+                    </div>
+                    {
+                      obj.refContent?<div className={styles.articleContent} onClick={()=>this.articleDetail(obj)}>
+                        <span dangerouslySetInnerHTML = {{__html:(obj.refContent?obj.refContent:'').replace(/&nbsp;/ig, "&ensp;")}} ></span></div>:''
+                    }
+                  </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+        </SwipeAction>
+      )
+    }
+
+    return (
+      <div  className={styles.container} >
+        <div onTouchStart={() => this.hiddenMsgModal()}>
+          <Header searchMsg={this.searchMsg}  {...{ cusSerInfo, dispatch, history }}/>
+          <div className={styles.containerList}>
+            <ListView
+              onScroll={()=>{
+                this.setState({userItem:{},sendMsgKey:Math.random()})
+              }}
+              key={this.state.listViewKey}
+              ref={el => this.lv = el}
+              dataSource={dataSource}
+              onEndReachedThreshold={10}
+              renderFooter={() => (<div style={{ textAlign: 'center' }}>
+                {hasMore ? 'Loading...' : '没有更多数据...'}
+              </div>)}
+              renderRow={row}
+              style={{
+                height: document.documentElement.clientHeight -102-("{}"!=JSON.stringify(userItem)?48:0)
+                -(document.getElementById("headerContainer")?document.getElementById("headerContainer").offsetHeight:0),
+              }}
+              pullToRefresh={<PullToRefresh
+                refreshing={refreshing}
+                onRefresh={this.refreshHandle}
+              />}
+              onEndReached={() => this.endReachedHandle()}
+              pageSize={10}
+              scrollRenderAheadDistance={10}
+            />
+          </div>
+        </div>
+        <div id={"sendMsgMsg"} style={{display:"{}"!=JSON.stringify(userItem)?"block":'none'}}>
+          <SendMsg
+            key={sendMsgKey}
+            uploadImg={this.uploadImg}
+            placeholder={placeholder}
+            ref={"sendMsg"}
+            uploadImg={this.uploadImg}
+            sendMsgHandle={this.sendMsgHandle}/>
+        </div>
+        <ImageViewer ref={"imageViewer"}/>
+        <PtRedPack isShow={false} dispatch={this.props.dispatch}/>
+      </div>
+    )
+  }
+}
+
+
+export default List

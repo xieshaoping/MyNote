@@ -1,0 +1,20 @@
+1.export：          输出v
+2.payload：         有效载荷;装载货物v
+3.Component：       成分n
+4.PureComponent：   纯组分n
+5.several  definitions：若干个定义n
+6.async：           异步adj
+7.replace：         代替v
+8.yield：           产量n、v
+9.componentDidMount:组件安装
+10.dispatch：       派遣，调度
+11.props：          道具
+12.initialValue：   初始值
+13.handleSubmit：   手动提交
+14.force：          强迫，力
+15.target：         目标，对象
+16.hideRequiredMark 隐藏必填标志
+17.PageHeaderWrapper页面标题包装器
+18.wrapper          包装、打包
+19.pagination       分页。n
+20.ellipsis         省略

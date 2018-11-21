@@ -1,0 +1,46 @@
+
+            <FormItem
+              {...formItemLayout}
+              label={<FormattedMessage id="form.public.label" />}
+              help={<FormattedMessage id="form.public.label.help" />}
+            >
+              <div>
+                {getFieldDecorator('public', {
+                  initialValue: '1',
+                })(
+                  <Radio.Group>
+                    <Radio value="1">
+                      <FormattedMessage id="form.public.radio.public" />
+                    </Radio>
+                    <Radio value="2">
+                      <FormattedMessage id="form.public.radio.partially-public" />
+                    </Radio>
+                    <Radio value="3">
+                      <FormattedMessage id="form.public.radio.private" />
+                    </Radio>
+                  </Radio.Group>
+                )}
+                <FormItem style={{ marginBottom: 0 }}>
+                  {getFieldDecorator('publicUsers')(
+                    <Select
+                      mode="multiple"
+                      placeholder={formatMessage({ id: 'form.publicUsers.placeholder' })}
+                      style={{
+                        margin: '8px 0',
+                        display: getFieldValue('public') === '2' ? 'block' : 'none',
+                      }}
+                    >
+                      <Option value="1">
+                        <FormattedMessage id="form.publicUsers.option.A" />
+                      </Option>
+                      <Option value="2">
+                        <FormattedMessage id="form.publicUsers.option.B" />
+                      </Option>
+                      <Option value="3">
+                        <FormattedMessage id="form.publicUsers.option.C" />
+                      </Option>
+                    </Select>
+                  )}
+                </FormItem>
+              </div>
+            </FormItem>

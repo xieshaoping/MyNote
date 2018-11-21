@@ -1,0 +1,123 @@
+1.http://localhost:8088/my
+   const { loading: { effects }, accountDetail: { accountInfo } } = this.props
+2.http://localhost:8088/my/accountDetail
+3.finance_user_flow，用户资金流水
+4.getCurrentUserInfo
+5.currentUserInfo.articleCnt
+6.getCurrentUserInfo: `${API_PREX}/user/getCurrentUserInfo`,
+
+1、微信端动态、评论、消息页面追加举报，文字尾部追加举报（灰色文字）功能，用户点击举报，弹出选择单选框（参考今日头条）;
+
+2、后台举报处理（见原型）
+
+
+3.user_report（举报）,
+    0.动态，3.有趣有料，=》gam_article(动态);
+    1:评论;2:消息;=》gam_natice（通知）
+4.举报类型0:低俗色情;1:垃圾广告;2:内容低俗无意义;3:辱骂攻击;4:其他违法信息;5:抄袭我的内容;6:暴露我的隐私;7:内容里有关我的不实描述
+
+
+ <div
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  width: 150,
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={() => {
+                  message.info("进入");
+                }}
+              >
+                {text.replace(/&nbsp;/gi, '').replace(/<br\/>/g, '')}
+              </div>
+
+
+
+
+ @Transactional(rollbackFor = Exception.class)
+    public String addArticle(ArticleVo article) {
+        String content = article.getContent();
+        Pattern pattern = Pattern.compile("(\n)");
+        Matcher m = pattern.matcher(content);
+        if (m.find()) {
+            content = m.replaceAll("<br/>");
+        }
+        article.setContent(content);
+        return articleServiceTx.addArticle(article);
+    }
+
+
+
+
+
+
+<update id="handleStatus"  parameterType="java.lang.String">
+    <if test="status=='2'">
+        <include refid="noPass"></include>
+    </if>
+    <if test="status=='1'">
+        <include refid="pass"></include>
+    </if>
+</update>
+
+    <!--根据编码处理举报信息,不通过-->
+    <sql id="noPass">
+        update user_report
+        set status=#{status},upd_time=now()
+        where code=#{code}
+    </sql>
+
+    <!--根据编码处理举报信息,通过，并对评论进行逻辑删除-->
+    <sql id="pass">
+       update user_report ur,gam_article ga
+        set ur.status='1',ur.upd_time=now(),ga.del_flag=1
+        where ur.reported_id=ga.id
+        and  ur.code=#{code}
+    </sql>
+
+
+
+
+ <!--根据编码处理举报信息,不通过-->
+    <update id="handleStatus" parameterType="java.lang.String">
+        update user_report
+        set status=#{status},upd_time=now()
+        where reported_id=#{code}
+    </update>
+
+
+    <!--根据编码处理举报信息,通过，并对评论进行逻辑删除-->
+    <update id="pass" parameterType="java.lang.String">
+       update user_report ur,gam_article ga
+        set ur.status='1',ur.upd_time=now(),ga.del_flag=1
+        where ur.reported_id=ga.id
+        and  ur.code=#{code}
+    </update>
+
+
+
+
+
+
+  <span className={styles.rightUp}>
+      <Button className={styles.button}  onClick={this.showModal('modal2')}>举报</Button>
+      <Modal
+        popup
+        visible={this.state.modal2}
+        onClose={this.onClose('modal2')}
+        animationType="slide-up"
+      >
+        <div>
+      <List renderHeader={() => '举报'} className={styles.miniFont}>
+        {data.map(i => (
+          <CheckboxItem key={i.value}  disabled={i.disabled}  checked={i.checked} className={styles.miniFont}  onChange={(value) =>{
+            this.setChecked(value.target.checked,i)
+          }}>
+            {i.label}
+          </CheckboxItem>
+        ))}
+      </List>
+     <Button onClick={this.closeM('modal2',article.code)}>确定</Button>
+    </div>
+      </Modal>
+      </span>
